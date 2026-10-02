@@ -1,0 +1,110 @@
+/* One small stylesheet. No CSS library. */
+
+:root {
+  --bg: #f6f6f8;
+  --surface: #ffffff;
+  --text: #1c1c22;
+  --muted: #5c5c6b;
+  --line: #dcdce3;
+  --accent: #5b3df5;
+  --accent-text: #ffffff;
+  --danger: #b3261e;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 1rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+label {
+  display: block;
+  margin: 0.75rem 0 0.25rem;
+  font-weight: 600;
+}
+
+input {
+  font: inherit;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.error {
+  color: var(--danger);
+  margin: 0 0 0.75rem;
+}
+
+.dev-hint {
+  background: #fff6d6;
+  border: 1px dashed #c9a400;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+}
+
+.sign-in {
+  max-width: 22rem;
+  margin: 12vh auto 0;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.center-message {
+  max-width: 28rem;
+  margin: 12vh auto 0;
+  padding: 0 1rem;
+  text-align: center;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.app-header .spacer {
+  flex: 1;
+}
+
+.app-main {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem;
+}
