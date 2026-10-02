@@ -8,7 +8,8 @@
  *   ...
  *   server.calls   // every request the code under test made, in order
  *
- * Keys are "METHOD path" (path relative to /api/v1/, as the app writes it).
+ * Keys are "METHOD path" (path relative to /api/v1/, without the query string;
+ * the handler reads `call.query`).
  * A request nobody described fails the test loudly instead of hanging.
  */
 
@@ -16,7 +17,9 @@ import { vi } from 'vitest'
 
 export type Call = {
   method: string
+  /** Without the query string. */
   path: string
+  query: URLSearchParams
   headers: Record<string, string>
   body: unknown
 }
@@ -45,11 +48,12 @@ export function fakeApi(handlers: Record<string, Handler>) {
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
-      const path = url.replace(/^\/api\/v1\//, '')
+      const [path, queryString = ''] = url.replace(/^\/api\/v1\//, '').split('?')
       const method = init?.method ?? 'GET'
       const call: Call = {
         method,
         path,
+        query: new URLSearchParams(queryString),
         headers: { ...(init?.headers as Record<string, string>) },
         body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
       }

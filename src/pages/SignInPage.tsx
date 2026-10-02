@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Navigate, useLocation } from 'react-router'
 import { requestOtp } from '../api/auth'
 import { describeError } from '../api/errors'
 import { useAuth } from '../auth/AuthContext'
+import { safeLocalPath } from '../lib/safePath'
 
 /** Sign in with the phone number and the code sent to it (two steps). */
 export function SignInPage() {
   const { state, signIn } = useAuth()
-  const navigate = useNavigate()
   const location = useLocation()
 
   const [step, setStep] = useState<'phone' | 'code'>('phone')
@@ -18,10 +18,16 @@ export function SignInPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  // Already signed in (for example the person typed /sign-in by hand).
-  if (state.status === 'signedIn') return <Navigate to="/" replace />
+  // Where the person was going before being sent here (the filters included).
+  // Set only by our own redirect; safeLocalPath is the safety net.
+  const cameFrom = safeLocalPath((location.state as { from?: unknown } | null)?.from)
 
-  const cameFrom = (location.state as { from?: string } | null)?.from ?? '/'
+  // Once the server has said who this is (staff, not staff, or unreachable), leave
+  // this screen: the guarded screen shows the right thing, and for a signed-in
+  // person it is the place they were going. Only a signed-out visitor stays here.
+  if (state.status !== 'signedOut' && state.status !== 'loading') {
+    return <Navigate to={cameFrom} replace />
+  }
 
   async function submitPhone(event: FormEvent) {
     event.preventDefault()
@@ -47,7 +53,7 @@ export function SignInPage() {
     setError(null)
     try {
       await signIn(phone.trim(), code.trim())
-      navigate(cameFrom, { replace: true })
+      // Nothing more to do: once the server has answered, the redirect above takes over.
     } catch (e) {
       setError(describeError(e))
       setBusy(false)

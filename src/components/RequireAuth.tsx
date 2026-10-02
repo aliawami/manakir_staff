@@ -17,7 +17,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
     case 'signedOut':
       // Remember where the person was going, so sign-in can bring them back.
-      return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />
+      return <Navigate to="/sign-in" replace state={{ from: location.pathname + location.search }} />
 
     case 'noAccess':
       return (

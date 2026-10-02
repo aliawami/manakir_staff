@@ -48,9 +48,10 @@ request itself; never rely on the UI for security.
 ```
 src/api/        talking to the API (client.ts is the only place that calls fetch)
 src/auth/       who is signed in (session.ts = tokens, AuthContext.tsx = app-wide state)
-src/components/ shared pieces (RequireAuth, Layout)
+src/components/ shared pieces (RequireAuth, RequirePermission, Layout, StatusBadge)
+src/lib/        small pure helpers (date formatting, safe redirect path)
 src/pages/      one file per screen
-src/test/       test helpers (fakeApi = a pretend server)
+src/test/       test helpers (fakeApi = a pretend server, renderApp = the whole app in a test)
 ```
 
 ## Production

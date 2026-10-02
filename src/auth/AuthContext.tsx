@@ -12,6 +12,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { fetchMe, logout, verifyOtp } from '../api/auth'
 import type { StaffMe } from '../api/auth'
 import { ApiError, describeError } from '../api/errors'
@@ -56,12 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session.getRefresh() === null ? { status: 'signedOut' } : { status: 'loading' },
   )
   const [attempt, setAttempt] = useState(0)
+  // Everything fetched for one person (the queue, applicant phone numbers) must
+  // be forgotten when they leave: the next person to sign in on this tab would
+  // otherwise see it for a moment before it refreshes.
+  const queryClient = useQueryClient()
 
   // The server refused our refresh token somewhere: back to the sign-in screen.
   useEffect(() => {
-    session.setSessionEndedHandler(() => setState({ status: 'signedOut' }))
+    session.setSessionEndedHandler(() => {
+      setState({ status: 'signedOut' })
+      queryClient.clear()
+    })
     return () => session.setSessionEndedHandler(null)
-  }, [])
+  }, [queryClient])
 
   // First load (or "try again"): if a refresh token was saved, find out who we are.
   // There is no access token yet after a reload, so the first request gets a 401
@@ -77,16 +85,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [attempt])
 
-  const signIn = useCallback(async (phoneNumber: string, otpCode: string) => {
-    session.setTokens(await verifyOtp(phoneNumber, otpCode))
-    setState(await loadState())
-  }, [])
+  const signIn = useCallback(
+    async (phoneNumber: string, otpCode: string) => {
+      session.setTokens(await verifyOtp(phoneNumber, otpCode))
+      queryClient.clear()
+      setState(await loadState())
+    },
+    [queryClient],
+  )
 
   const signOut = useCallback(async () => {
     await logout()
     session.clear()
     setState({ status: 'signedOut' })
-  }, [])
+    queryClient.clear()
+  }, [queryClient])
 
   const reload = useCallback(() => {
     setState({ status: 'loading' })

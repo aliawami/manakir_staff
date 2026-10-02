@@ -1,7 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router'
+import { PERMISSIONS } from './auth/permissions'
 import { Layout } from './components/Layout'
 import { RequireAuth } from './components/RequireAuth'
-import { HomePage } from './pages/HomePage'
+import { RequirePermission } from './components/RequirePermission'
+import { ApplicationDetailPage } from './pages/ApplicationDetailPage'
+import { ApplicationsPage } from './pages/ApplicationsPage'
+import { HomeRedirect } from './pages/HomeRedirect'
 import { SignInPage } from './pages/SignInPage'
 
 export function App() {
@@ -15,7 +19,23 @@ export function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<HomePage />} />
+        <Route index element={<HomeRedirect />} />
+        <Route
+          path="applications"
+          element={
+            <RequirePermission permission={PERMISSIONS.viewApplications}>
+              <ApplicationsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="applications/:id"
+          element={
+            <RequirePermission permission={PERMISSIONS.viewApplications}>
+              <ApplicationDetailPage />
+            </RequirePermission>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -1,9 +1,10 @@
-import { Outlet } from 'react-router'
+import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../auth/AuthContext'
+import { PERMISSIONS } from '../auth/permissions'
 
 /** The frame around every signed-in screen: header with who you are + sign-out. */
 export function Layout() {
-  const { state, signOut } = useAuth()
+  const { state, signOut, can } = useAuth()
   if (state.status !== 'signedIn') return null
 
   const { me } = state
@@ -14,6 +15,9 @@ export function Layout() {
     <>
       <header className="app-header">
         <strong>Manakir Staff</strong>
+        <nav aria-label="Main">
+          {can(PERMISSIONS.viewApplications) && <NavLink to="/applications">Applications</NavLink>}
+        </nav>
         <span className="spacer" />
         <span dir="auto">{displayName}</span>
         <button className="secondary" onClick={() => void signOut()}>
