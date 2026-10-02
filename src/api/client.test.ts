@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { api } from './client'
+import { api, apiFile } from './client'
 import { ApiError, describeError } from './errors'
 import { session } from '../auth/session'
 import { fail, fakeApi, json, networkDown, ok } from '../test/fakeApi'
@@ -260,5 +260,46 @@ describe('api(): expired access token', () => {
 
     expect(error.status).toBe(401)
     expect(server.to('POST token/refresh/')).toHaveLength(0)
+  })
+})
+
+describe('apiFile()', () => {
+  it('returns the file as a Blob, sending the Bearer token', async () => {
+    signedInWith('A1', 'R1')
+    const server = fakeApi({
+      'GET f/': () => new Response('abc', { status: 200, headers: { 'Content-Type': 'image/png' } }),
+    })
+
+    const blob = await apiFile('f/')
+
+    expect(blob.type).toBe('image/png')
+    expect(await blob.text()).toBe('abc')
+    expect(server.calls[0].headers.Authorization).toBe('Bearer A1')
+  })
+
+  it('renews an expired token and repeats the request, like api()', async () => {
+    signedInWith('OLD', 'R1')
+    const server = fakeApi({
+      'GET f/': (call) =>
+        call.headers.Authorization === 'Bearer NEW'
+          ? new Response('ok', { status: 200, headers: { 'Content-Type': 'application/pdf' } })
+          : fail(401, 'expired'),
+      'POST token/refresh/': () => ok({ access: 'NEW', refresh: 'R2' }),
+    })
+
+    const blob = await apiFile('f/')
+
+    expect(await blob.text()).toBe('ok')
+    expect(server.to('POST token/refresh/')).toHaveLength(1)
+  })
+
+  it('turns an error answer into an ApiError with the server message', async () => {
+    signedInWith('A1', 'R1')
+    fakeApi({ 'GET f/': () => fail(404, 'The file is missing from storage.') })
+
+    const error = await failure(apiFile('f/'))
+
+    expect(error.status).toBe(404)
+    expect(error.message).toBe('The file is missing from storage.')
   })
 })

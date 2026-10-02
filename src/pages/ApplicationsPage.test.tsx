@@ -1,29 +1,15 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { PERMISSIONS } from '../auth/permissions'
 import { fail, fakeApi, ok } from '../test/fakeApi'
 import type { Handler } from '../test/fakeApi'
 import { renderApp } from '../test/renderApp'
+import { NO_TOOLS, REVIEWER, staffServer } from '../test/staffServer'
 
 const DAY = 24 * 60 * 60 * 1000
 const daysAgo = (n: number) => new Date(Date.now() - n * DAY).toISOString()
 
 const LIST = 'GET staff/merchant-applications/'
-
-const REVIEWER = {
-  id: 9,
-  phone_number: '0500000001',
-  full_name: 'Hussain Reviewer',
-  roles: ['merchant_reviewer'],
-  permissions: [
-    'staff.access_staff_app',
-    PERMISSIONS.viewApplications,
-    PERMISSIONS.viewDocuments,
-    PERMISSIONS.decideApplications,
-  ],
-}
-const NO_TOOLS = { ...REVIEWER, roles: [], permissions: ['staff.access_staff_app'] }
 
 function application(overrides: Record<string, unknown> = {}) {
   return {
@@ -45,16 +31,8 @@ function pageOf(results: object[], count = results.length, page = 1) {
   return { count, page, page_size: 20, results }
 }
 
-/** A server where a reviewer is already signed in on this tab (refresh token saved). */
 function serverWith(list: Handler, me: object = REVIEWER, extra: Record<string, Handler> = {}) {
-  sessionStorage.setItem('manakir_staff_refresh_token', 'REFRESH-1')
-  return fakeApi({
-    'GET staff/me/': (call) =>
-      call.headers.Authorization === 'Bearer ACCESS-1' ? ok(me) : fail(401, 'Not signed in'),
-    'POST token/refresh/': () => ok({ access: 'ACCESS-1', refresh: 'REFRESH-2' }),
-    [LIST]: list,
-    ...extra,
-  })
+  return staffServer({ [LIST]: list, ...extra }, me)
 }
 
 const listOf = (results: object[], count = results.length): Handler => () => ok(pageOf(results, count))
@@ -124,12 +102,14 @@ describe('rows', () => {
 
   it('a row opens its application', async () => {
     const user = userEvent.setup()
-    serverWith(listOf([application({ id: 42 })]))
+    serverWith(listOf([application({ id: 42 })]), REVIEWER, {
+      'GET staff/merchant-applications/42/': () => ok({ ...application({ id: 42 }), documents: [], history: [] }),
+    })
     renderApp('/applications')
 
     await user.click(await screen.findByRole('link', { name: 'Glow Salon' }))
 
-    expect(await screen.findByRole('heading', { name: 'Application #42' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Glow Salon/ })).toBeInTheDocument()
   })
 })
 

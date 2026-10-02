@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, apiFile } from './client'
 
 export const APPLICATION_STATUSES = ['SUBMITTED', 'RETURNED', 'APPROVED', 'REJECTED'] as const
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number]
@@ -51,4 +51,56 @@ export function fetchApplications(params: ListParams): Promise<Page<ApplicationL
   query.set('page', String(params.page))
   query.set('page_size', String(PAGE_SIZE))
   return api<Page<ApplicationListItem>>(`staff/merchant-applications/?${query.toString()}`)
+}
+
+export type DocumentKind = 'CERTIFICATE' | 'NATIONAL_ID'
+
+export type ApplicationDocument = {
+  id: number
+  kind: DocumentKind
+  original_name: string
+  /** The type checked when the file was uploaded (PDF, JPEG or PNG). */
+  content_type: string
+  size: number
+  uploaded_at: string
+  /** false = the applicant replaced this file later; it stays listed. */
+  is_current: boolean
+  superseded_at: string | null
+}
+
+export type Person = { id: number; full_name: string }
+
+export type HistoryEntry = {
+  id: number
+  /** MERCHANT_APPLICATION_RETURNED | _REJECTED | _APPROVED | _AUTO_CLOSED */
+  action: string
+  /** null = the system acted (automatic closing). */
+  actor: Person | null
+  created_at: string
+  /** For return / reject: { reason }. For approve: what was entered. */
+  metadata: Record<string, unknown>
+}
+
+/** One application with everything needed to decide (GET staff/merchant-applications/<id>/). */
+export type ApplicationDetail = ApplicationListItem & {
+  national_address: string
+  decision_reason: string
+  decided_by: Person | null
+  /** Id of the salon created on approval. */
+  salon: number | null
+  documents: ApplicationDocument[]
+  history: HistoryEntry[]
+}
+
+export function fetchApplication(id: string): Promise<ApplicationDetail> {
+  return api<ApplicationDetail>(`staff/merchant-applications/${id}/`)
+}
+
+/**
+ * The file itself. Every call is written to the audit log by the server, so
+ * this must only ever run because a person asked to open the document: never
+ * from an effect, a prefetch or an automatic refetch.
+ */
+export function fetchDocument(applicationId: number, documentId: number): Promise<Blob> {
+  return apiFile(`staff/merchant-applications/${applicationId}/documents/${documentId}/`)
 }

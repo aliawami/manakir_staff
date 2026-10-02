@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link, useLocation, useSearchParams } from 'react-router'
 import { PAGE_SIZE, fetchApplications } from '../api/merchantApplications'
 import type { ApplicationListItem } from '../api/merchantApplications'
 import { describeError } from '../api/errors'
@@ -19,6 +19,7 @@ const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
 /** The review queue: applications, filtered, oldest first by default, 20 per page. */
 export function ApplicationsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
   const filters = readFilters(searchParams)
   const params = toListParams(filters)
 
@@ -78,6 +79,7 @@ export function ApplicationsPage() {
       ) : (
         <Results
           data={query.data}
+          search={location.search}
           page={filters.page}
           busy={query.isPlaceholderData}
           onPage={(page) => change({ page })}
@@ -89,11 +91,14 @@ export function ApplicationsPage() {
 
 function Results({
   data,
+  search,
   page,
   busy,
   onPage,
 }: {
   data: { count: number; results: ApplicationListItem[] }
+  /** The queue's own query string, handed to the detail screen so "Back" returns here. */
+  search: string
   page: number
   busy: boolean
   onPage: (page: number) => void
@@ -126,7 +131,7 @@ function Results({
         </thead>
         <tbody>
           {data.results.map((application) => (
-            <Row key={application.id} application={application} />
+            <Row key={application.id} application={application} search={search} />
           ))}
         </tbody>
       </table>
@@ -150,13 +155,13 @@ function Results({
   )
 }
 
-function Row({ application }: { application: ApplicationListItem }) {
+function Row({ application, search }: { application: ApplicationListItem; search: string }) {
   const name = realName(application.applicant.full_name)
 
   return (
     <tr>
       <td>
-        <Link to={`/applications/${application.id}`} dir="auto">
+        <Link to={`/applications/${application.id}`} state={{ queueSearch: search }} dir="auto">
           {application.name || application.name_ar}
         </Link>
         {application.name && application.name_ar && (

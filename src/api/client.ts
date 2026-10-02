@@ -26,6 +26,22 @@ type RequestOptions = {
 }
 
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return readEnvelope<T>(await request(path, options))
+}
+
+/**
+ * Fetch a FILE (not JSON) with the same sign-in handling. A plain <img src> or
+ * link cannot send the Authorization header, so the file is fetched here and
+ * shown from the Blob.
+ */
+export async function apiFile(path: string): Promise<Blob> {
+  const response = await request(path, {})
+  if (!response.ok) throw await errorFrom(response)
+  return response.blob()
+}
+
+/** Send a request; on a 401 renew the tokens and repeat it once. */
+async function request(path: string, options: RequestOptions): Promise<Response> {
   const useAuth = options.auth ?? true
 
   const usedToken = useAuth ? session.getAccess() : null
@@ -44,9 +60,9 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       throw new ApiError(0, 'Could not renew your session. Check the connection and try again.')
     }
     // 'ended': the app is already back at the sign-in screen; the original 401
-    // is reported below.
+    // is reported by the caller.
   }
-  return readEnvelope<T>(response)
+  return response
 }
 
 async function send(
@@ -72,16 +88,18 @@ async function send(
   }
 }
 
-async function readEnvelope<T>(response: Response): Promise<T> {
+async function errorFrom(response: Response): Promise<ApiError> {
   const body = await readJson(response)
+  const message =
+    typeof body?.message === 'string' && body.message
+      ? body.message
+      : `The server answered ${response.status}.`
+  return new ApiError(response.status, message, body?.errors ?? null)
+}
 
-  if (!response.ok) {
-    const message =
-      typeof body?.message === 'string' && body.message
-        ? body.message
-        : `The server answered ${response.status}.`
-    throw new ApiError(response.status, message, body?.errors ?? null)
-  }
+async function readEnvelope<T>(response: Response): Promise<T> {
+  if (!response.ok) throw await errorFrom(response)
+  const body = await readJson(response)
   return body?.data as T
 }
 
