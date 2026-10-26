@@ -5,6 +5,8 @@ import { RequireAuth } from './components/RequireAuth'
 import { RequirePermission } from './components/RequirePermission'
 import { ApplicationDetailPage } from './pages/ApplicationDetailPage'
 import { ApplicationsPage } from './pages/ApplicationsPage'
+import { CollectionDetailPage } from './pages/CollectionDetailPage'
+import { CollectionsPage } from './pages/CollectionsPage'
 import { HomeRedirect } from './pages/HomeRedirect'
 import { SignInPage } from './pages/SignInPage'
 
@@ -33,6 +35,22 @@ export function App() {
           element={
             <RequirePermission permission={PERMISSIONS.viewApplications}>
               <ApplicationDetailPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="collections"
+          element={
+            <RequirePermission permission={PERMISSIONS.viewCollections}>
+              <CollectionsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="collections/:salonId/:weekStart"
+          element={
+            <RequirePermission permission={PERMISSIONS.viewCollections}>
+              <CollectionDetailPage />
             </RequirePermission>
           }
         />

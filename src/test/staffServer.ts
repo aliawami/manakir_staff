@@ -22,6 +22,27 @@ export const OVERSIGHT = {
   permissions: ['staff.access_staff_app', PERMISSIONS.viewApplications],
 }
 
+/** Collects the cash commission (the "finance" role). */
+export const FINANCE = {
+  ...REVIEWER,
+  id: 12,
+  full_name: 'Ghaith',
+  roles: ['finance'],
+  permissions: [
+    'staff.access_staff_app',
+    PERMISSIONS.viewCollections,
+    PERMISSIONS.collectCommissions,
+  ],
+}
+
+/** Can read the collections but not act on them. */
+export const COLLECTIONS_READER = {
+  ...FINANCE,
+  id: 13,
+  roles: [],
+  permissions: ['staff.access_staff_app', PERMISSIONS.viewCollections],
+}
+
 export const NO_TOOLS = { ...REVIEWER, roles: [], permissions: ['staff.access_staff_app'] }
 
 /**

@@ -7,4 +7,6 @@ export const PERMISSIONS = {
   viewApplications: 'merchant_applications.view_merchantapplication',
   viewDocuments: 'merchant_applications.view_merchantapplication_documents',
   decideApplications: 'merchant_applications.decide_merchantapplication',
+  viewCollections: 'cash_collections.view_cashcollection',
+  collectCommissions: 'cash_collections.collect_cashcollection',
 } as const
