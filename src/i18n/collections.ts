@@ -28,6 +28,18 @@ export const ar = {
     scope: 'المستحق والمتأخر وعدد الكشوف حسب التصفية الحالية. المحصَّل هذا الشهر لا يتأثر بها.',
   },
 
+  tabs: {
+    label: 'عرض الكشوف',
+    statements: 'الكشوف',
+    month: 'المحصَّل هذا الشهر',
+  },
+
+  month: {
+    collected: 'المحصَّل',
+    collectedAt: 'آخر تحصيل',
+    empty: 'لم يتم تحصيل أي مبلغ هذا الشهر بعد.',
+  },
+
   filters: {
     status: 'الحالة',
     statusDue: 'مستحق',
@@ -106,7 +118,7 @@ export const ar = {
     extendQuestion: 'سيصبح موعد التحصيل',
     extendOnce: 'يمكن التمديد مرة واحدة فقط لكل أسبوع.',
     collectedDone: 'تم تسجيل التحصيل.',
-    viewCollected: 'عرض الكشوف المحصَّلة',
+    viewCollected: 'عرض المحصَّل هذا الشهر',
     extendedDone: (date: string) => `تم تمديد موعد التحصيل إلى ${date}.`,
   },
 

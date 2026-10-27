@@ -4,8 +4,8 @@ import { PAGE_SIZE, fetchStatements } from '../api/cashCollections'
 import type { Statement, Totals } from '../api/cashCollections'
 import { Money } from '../components/collections/Money'
 import { StatementBadges } from '../components/collections/StatementBadges'
-import { ar, collectionErrorMessage, formatDay, formatWeek } from '../i18n/collections'
-import { readFilters, toListParams, writeFilters } from './collectionFilters'
+import { ar, collectionErrorMessage, formatDay, formatMoment, formatWeek } from '../i18n/collections'
+import { DEFAULT_FILTERS, readFilters, toListParams, writeFilters } from './collectionFilters'
 import type { CollectionFilters, OverdueFilter, StatusFilter } from './collectionFilters'
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
@@ -26,6 +26,7 @@ export function CollectionsPage() {
   const location = useLocation()
   const filters = readFilters(searchParams)
   const params = toListParams(filters)
+  const month = filters.view === 'month'
 
   const query = useQuery({
     queryKey: ['collections', 'list', params],
@@ -43,49 +44,68 @@ export function CollectionsPage() {
     <section dir="rtl" lang="ar" className="rtl">
       <h1>{ar.title}</h1>
 
-      {query.data && <TotalsBar totals={query.data.totals} />}
-
-      <div className="filters">
-        <div>
-          <label htmlFor="status">{ar.filters.status}</label>
-          <select
-            id="status"
-            value={filters.status}
-            onChange={(e) => change({ status: e.target.value as StatusFilter })}
-          >
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="overdue">{ar.filters.overdue}</label>
-          <select
-            id="overdue"
-            value={filters.overdue}
-            onChange={(e) => change({ overdue: e.target.value as OverdueFilter })}
-          >
-            {OVERDUE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="ordering">{ar.filters.ordering}</label>
-          <select
-            id="ordering"
-            value={filters.ordering}
-            onChange={(e) => change({ ordering: e.target.value as CollectionFilters['ordering'] })}
-          >
-            <option value="oldest">{ar.filters.oldest}</option>
-            <option value="newest">{ar.filters.newest}</option>
-          </select>
-        </div>
+      <div role="tablist" aria-label={ar.tabs.label} className="tabs">
+        <button
+          role="tab"
+          aria-selected={!month}
+          onClick={() => !month || setSearchParams(writeFilters(DEFAULT_FILTERS))}
+        >
+          {ar.tabs.statements}
+        </button>
+        <button
+          role="tab"
+          aria-selected={month}
+          onClick={() => month || setSearchParams(writeFilters({ ...DEFAULT_FILTERS, view: 'month' }))}
+        >
+          {ar.tabs.month}
+        </button>
       </div>
+
+      {query.data && <TotalsBar totals={query.data.totals} month={month} />}
+
+      {!month && (
+        <div className="filters">
+          <div>
+            <label htmlFor="status">{ar.filters.status}</label>
+            <select
+              id="status"
+              value={filters.status}
+              onChange={(e) => change({ status: e.target.value as StatusFilter })}
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="overdue">{ar.filters.overdue}</label>
+            <select
+              id="overdue"
+              value={filters.overdue}
+              onChange={(e) => change({ overdue: e.target.value as OverdueFilter })}
+            >
+              {OVERDUE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="ordering">{ar.filters.ordering}</label>
+            <select
+              id="ordering"
+              value={filters.ordering}
+              onChange={(e) => change({ ordering: e.target.value as CollectionFilters['ordering'] })}
+            >
+              <option value="oldest">{ar.filters.oldest}</option>
+              <option value="newest">{ar.filters.newest}</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {query.isError ? (
         <div role="alert" className="panel">
@@ -98,6 +118,7 @@ export function CollectionsPage() {
         <Results
           data={query.data}
           search={location.search}
+          month={month}
           page={filters.page}
           busy={query.isPlaceholderData}
           onPage={(page) => change({ page })}
@@ -107,7 +128,25 @@ export function CollectionsPage() {
   )
 }
 
-function TotalsBar({ totals }: { totals: Totals }) {
+function TotalsBar({ totals, month }: { totals: Totals; month: boolean }) {
+  if (month) {
+    return (
+      <div className="stats">
+        <div className="stat">
+          <span className="muted">{ar.totals.collectedThisMonth}</span>
+          <strong>
+            <Money value={totals.collected_this_month} />
+          </strong>
+        </div>
+        <div className="stat">
+          <span className="muted">{ar.totals.statements}</span>
+          <strong>
+            <bdi dir="ltr">{totals.statements}</bdi>
+          </strong>
+        </div>
+      </div>
+    )
+  }
   return (
     <>
       <div className="stats">
@@ -144,6 +183,7 @@ function TotalsBar({ totals }: { totals: Totals }) {
 function Results({
   data,
   search,
+  month,
   page,
   busy,
   onPage,
@@ -151,13 +191,15 @@ function Results({
   data: { count: number; results: Statement[] }
   /** The list's own query string, handed to the detail screen so "back" returns here. */
   search: string
+  /** The "collected this month" tab: other columns, other empty text. */
+  month: boolean
   page: number
   busy: boolean
   onPage: (page: number) => void
 }) {
   const pages = Math.max(1, Math.ceil(data.count / PAGE_SIZE))
 
-  if (data.count === 0) return <p className="empty">{ar.list.empty}</p>
+  if (data.count === 0) return <p className="empty">{month ? ar.month.empty : ar.list.empty}</p>
 
   if (data.results.length === 0) {
     return (
@@ -174,15 +216,30 @@ function Results({
           <tr>
             <th>{ar.list.salon}</th>
             <th>{ar.list.week}</th>
-            <th>{ar.list.dueDate}</th>
-            <th>{ar.list.bookings}</th>
-            <th>{ar.list.due}</th>
+            {month ? (
+              <>
+                <th>{ar.month.collected}</th>
+                <th>{ar.month.collectedAt}</th>
+                <th>{ar.list.due}</th>
+              </>
+            ) : (
+              <>
+                <th>{ar.list.dueDate}</th>
+                <th>{ar.list.bookings}</th>
+                <th>{ar.list.due}</th>
+              </>
+            )}
             <th>{ar.list.status}</th>
           </tr>
         </thead>
         <tbody>
           {data.results.map((statement) => (
-            <Row key={`${statement.salon.id}-${statement.week_start}`} statement={statement} search={search} />
+            <Row
+              key={`${statement.salon.id}-${statement.week_start}`}
+              statement={statement}
+              search={search}
+              month={month}
+            />
           ))}
         </tbody>
       </table>
@@ -206,7 +263,7 @@ function Results({
   )
 }
 
-function Row({ statement, search }: { statement: Statement; search: string }) {
+function Row({ statement, search, month }: { statement: Statement; search: string; month: boolean }) {
   return (
     <tr>
       <td>
@@ -219,13 +276,27 @@ function Row({ statement, search }: { statement: Statement; search: string }) {
         </Link>
       </td>
       <td>{formatWeek(statement.week_start, statement.week_end)}</td>
-      <td>{formatDay(statement.due_date)}</td>
-      <td>
-        <bdi dir="ltr">{statement.bookings_count}</bdi>
-      </td>
-      <td>
-        <Money value={statement.due_total} />
-      </td>
+      {month ? (
+        <>
+          <td>
+            <Money value={statement.collected_this_month} />
+          </td>
+          <td>{statement.last_collected_at ? formatMoment(statement.last_collected_at) : '—'}</td>
+          <td>
+            <Money value={statement.due_total} />
+          </td>
+        </>
+      ) : (
+        <>
+          <td>{formatDay(statement.due_date)}</td>
+          <td>
+            <bdi dir="ltr">{statement.bookings_count}</bdi>
+          </td>
+          <td>
+            <Money value={statement.due_total} />
+          </td>
+        </>
+      )}
       <td>
         <StatementBadges statement={statement} />
       </td>

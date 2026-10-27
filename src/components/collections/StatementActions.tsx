@@ -18,8 +18,8 @@ type Mode = 'collect' | 'extend' | null
 
 const NOTE_MAX = 500
 
-/** Where "view collected" goes: what was collected, the latest first. */
-const COLLECTED_VIEW = { ...DEFAULT_FILTERS, status: 'COLLECTED', ordering: 'newest' } as const
+/** Where "view collected" goes: the tab with what was collected this month. */
+const MONTH_VIEW = { ...DEFAULT_FILTERS, view: 'month' } as const
 
 /** Errors that mean "what you were looking at is out of date": reload the statement. */
 const STALE_CODES = ['amount_changed', 'nothing_due', 'already_extended']
@@ -81,7 +81,7 @@ export function StatementActions({
       afterSuccess(data, {
         kind: 'success',
         text: ar.actions.collectedDone,
-        link: { to: `/collections?${writeFilters(COLLECTED_VIEW)}`, label: ar.actions.viewCollected },
+        link: { to: `/collections?${writeFilters(MONTH_VIEW)}`, label: ar.actions.viewCollected },
       }),
     onError: afterError,
   })

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { fail, networkDown, ok } from '../test/fakeApi'
 import type { Handler } from '../test/fakeApi'
 import { renderApp } from '../test/renderApp'
-import { LIST, pageOf, statement } from '../test/collectionFixtures'
+import { DETAIL, LIST, detail, pageOf, statement } from '../test/collectionFixtures'
 import { COLLECTIONS_READER, FINANCE, REVIEWER, staffServer } from '../test/staffServer'
 
 const listOf =
@@ -118,7 +118,7 @@ describe('the list', () => {
     )
     renderApp('/collections')
 
-    const label = await screen.findByText('المحصَّل هذا الشهر')
+    const label = await screen.findByText('المحصَّل هذا الشهر', { selector: 'span.muted' })
     expect(within(label.closest('.stat') as HTMLElement).getByText('4,321.75')).toBeInTheDocument()
     expect(screen.getByText(/لا يتأثر بها/)).toBeInTheDocument()
   })
@@ -132,7 +132,7 @@ describe('the list', () => {
     renderApp('/collections')
 
     await screen.findByText('لا توجد كشوف مطابقة لهذه التصفية.')
-    const label = screen.getByText('المحصَّل هذا الشهر')
+    const label = screen.getByText('المحصَّل هذا الشهر', { selector: 'span.muted' })
     expect(within(label.closest('.stat') as HTMLElement).getByText('55.00')).toBeInTheDocument()
   })
 
@@ -236,6 +236,165 @@ describe('paging', () => {
 
     await userEvent.setup().click(await screen.findByRole('button', { name: 'الذهاب إلى الصفحة الأولى' }))
     expect(await screen.findByText('صالون ورد')).toBeInTheDocument()
+  })
+})
+
+describe('the "collected this month" tab', () => {
+  const collectedRow = (overrides = {}) =>
+    statement({
+      status: 'COLLECTED',
+      due_total: '0.00',
+      collected_total: '40.00',
+      collected_this_month: '23.00',
+      last_collected_at: '2026-11-02T10:00:00Z',
+      ...overrides,
+    })
+
+  const monthList = (results = [collectedRow()], totals = {}) =>
+    listOf(results, {
+      totals: {
+        statements: results.length,
+        due_total: '5.00',
+        overdue_total: '1.00',
+        collected_this_month: '23.00',
+        ...totals,
+      },
+    })
+
+  it('has two tabs, and the statements one is open to begin with', async () => {
+    serve()
+    renderApp('/collections')
+
+    await screen.findByText('صالون ورد')
+    const tabs = within(screen.getByRole('tablist', { name: 'عرض الكشوف' })).getAllByRole('tab')
+    expect(tabs.map((t) => t.textContent)).toEqual(['الكشوف', 'المحصَّل هذا الشهر'])
+    expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false'])
+  })
+
+  it('opens from the tab and asks only for what was collected this month', async () => {
+    const server = serve(monthList())
+    renderApp('/collections')
+    await screen.findByText('صالون ورد')
+
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'المحصَّل هذا الشهر' }))
+
+    await waitFor(() => expect(server.to(LIST).at(-1)!.query.get('collected_in')).toBe('this_month'))
+    const query = server.to(LIST).at(-1)!.query
+    expect(query.has('status')).toBe(false)
+    expect(query.has('overdue')).toBe(false)
+    expect(query.get('page')).toBe('1')
+    expect(screen.getByRole('tab', { name: 'المحصَّل هذا الشهر' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('can be opened straight from its address', async () => {
+    const server = serve(monthList())
+    renderApp('/collections?view=month')
+
+    await screen.findByText('صالون ورد')
+    expect(server.to(LIST)[0].query.get('collected_in')).toBe('this_month')
+    expect(screen.getByRole('tab', { name: 'المحصَّل هذا الشهر' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('shows the month total and the number of statements, and none of the filters', async () => {
+    serve(monthList([collectedRow(), collectedRow({ salon: { id: 8, name: 'صالون لمسة' } })], { collected_this_month: '46.00' }))
+    renderApp('/collections?view=month')
+
+    const label = await screen.findByText('المحصَّل هذا الشهر', { selector: 'span' })
+    const stat = label.closest('.stat') as HTMLElement
+    expect(within(stat).getByText('46.00')).toBeInTheDocument()
+    expect(screen.getByText('2', { selector: 'bdi' })).toBeInTheDocument()
+    // What is still due is the other tab's business.
+    expect(screen.queryByText('إجمالي المستحق')).not.toBeInTheDocument()
+    expect(screen.queryByText('منه متأخر')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('الحالة')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('التأخر')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('الترتيب')).not.toBeInTheDocument()
+  })
+
+  it('shows what was collected this month in each row, not the statement\'s whole history', async () => {
+    serve(monthList())
+    renderApp('/collections?view=month')
+
+    const row = (await screen.findByRole('link', { name: 'صالون ورد' })).closest('tr')!
+    expect(within(row).getByText('23.00')).toBeInTheDocument() // this month
+    expect(within(row).queryByText('40.00')).not.toBeInTheDocument() // all time
+    expect(within(row).getByText('2 نوفمبر 2026 في 13:00')).toBeInTheDocument()
+    expect(within(row).getByText('تم التحصيل')).toBeInTheDocument()
+    const headers = within(screen.getByRole('table')).getAllByRole('columnheader').map((h) => h.textContent)
+    expect(headers).toEqual(['الصالون', 'الأسبوع', 'المحصَّل', 'آخر تحصيل', 'المتبقي', 'الحالة'])
+  })
+
+  it('a statement only partly collected still shows what is left', async () => {
+    serve(monthList([collectedRow({ status: 'DUE', due_total: '11.50' })]))
+    renderApp('/collections?view=month')
+
+    const row = (await screen.findByRole('link', { name: 'صالون ورد' })).closest('tr')!
+    expect(within(row).getByText('11.50')).toBeInTheDocument()
+    expect(within(row).getByText('مستحق')).toBeInTheDocument()
+  })
+
+  it('says so when nothing was collected yet', async () => {
+    serve(monthList([], { collected_this_month: '0.00' }))
+    renderApp('/collections?view=month')
+
+    expect(await screen.findByText('لم يتم تحصيل أي مبلغ هذا الشهر بعد.')).toBeInTheDocument()
+    expect(screen.queryByText('لا توجد كشوف مطابقة لهذه التصفية.')).not.toBeInTheDocument()
+  })
+
+  it('pages within the tab', async () => {
+    const server = serve(listOf([collectedRow()], { count: 45 }))
+    renderApp('/collections?view=month')
+    await screen.findByText('صالون ورد')
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'التالي' }))
+
+    await waitFor(() => expect(server.to(LIST).at(-1)!.query.get('page')).toBe('2'))
+    const query = server.to(LIST).at(-1)!.query
+    expect(query.get('collected_in')).toBe('this_month')
+    expect(screen.getByRole('tab', { name: 'المحصَّل هذا الشهر' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('back from a statement returns to the tab', async () => {
+    staffServer(
+      {
+        [LIST]: monthList(),
+        [DETAIL]: () => ok(detail()),
+      },
+      FINANCE,
+    )
+    renderApp('/collections?view=month')
+
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('link', { name: 'صالون ورد' }))
+    await user.click(await screen.findByRole('link', { name: /العودة إلى كشوف التحصيل/ }))
+
+    expect(await screen.findByRole('tab', { name: 'المحصَّل هذا الشهر', selected: true })).toBeInTheDocument()
+  })
+
+  it('the first tab brings back the normal list with its defaults', async () => {
+    const server = serve(monthList())
+    renderApp('/collections?view=month')
+    await screen.findByText('صالون ورد')
+
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'الكشوف' }))
+
+    await waitFor(() => expect(server.to(LIST).at(-1)!.query.get('status')).toBe('DUE'))
+    const query = server.to(LIST).at(-1)!.query
+    expect(query.has('collected_in')).toBe(false)
+    expect(query.get('ordering')).toBe('oldest')
+    expect(screen.getByLabelText('الحالة')).toBeInTheDocument()
+  })
+
+  it('clicking the tab you are on does not ask the server again', async () => {
+    const server = serve(monthList())
+    renderApp('/collections?view=month')
+    await screen.findByText('صالون ورد')
+    const before = server.to(LIST).length
+
+    await userEvent.setup().click(screen.getByRole('tab', { name: 'المحصَّل هذا الشهر' }))
+
+    expect(server.to(LIST)).toHaveLength(before)
   })
 })
 

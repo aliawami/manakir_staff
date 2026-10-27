@@ -21,6 +21,7 @@ export function statement(overrides: Partial<Statement> = {}): Statement {
     due_total: '23.00',
     collected_total: '0.00',
     last_collected_at: null,
+    collected_this_month: '0.00',
     ...overrides,
   }
 }

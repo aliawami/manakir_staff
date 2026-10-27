@@ -358,3 +358,26 @@ tr.replaced {
   background: #fde8e6;
   border-color: #e5a7a1;
 }
+
+/* Tabs on the collections page */
+.rtl .tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1rem;
+}
+
+.rtl .tabs button {
+  background: transparent;
+  color: var(--muted);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 0.6rem 1rem;
+}
+
+.rtl .tabs button[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}

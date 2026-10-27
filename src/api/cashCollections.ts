@@ -32,6 +32,8 @@ export type Statement = {
   due_total: string
   collected_total: string
   last_collected_at: string | null
+  /** The part of this statement collected this month (can be less than collected_total). */
+  collected_this_month: string
 }
 
 export type StatementLine = {
@@ -72,6 +74,8 @@ export type ListParams = {
   status: StatementStatus | null
   /** null = overdue or not */
   overdue: boolean | null
+  /** this_month = only statements with something collected this month, latest first. */
+  collectedIn: 'this_month' | null
   ordering: Ordering
   page: number
 }
@@ -82,6 +86,7 @@ export function fetchStatements(params: ListParams): Promise<StatementPage> {
   const query = new URLSearchParams()
   if (params.status !== null) query.set('status', params.status)
   if (params.overdue !== null) query.set('overdue', String(params.overdue))
+  if (params.collectedIn !== null) query.set('collected_in', params.collectedIn)
   query.set('ordering', params.ordering)
   query.set('page', String(params.page))
   query.set('page_size', String(PAGE_SIZE))

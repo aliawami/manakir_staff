@@ -206,18 +206,16 @@ describe('confirming a collection', () => {
     await user.click(screen.getByRole('button', { name: 'نعم، تم الاستلام' }))
 
     const link = await within(await screen.findByRole('status')).findByRole('link', {
-      name: 'عرض الكشوف المحصَّلة',
+      name: 'عرض المحصَّل هذا الشهر',
     })
-    expect(link.getAttribute('href')).toContain('status=COLLECTED')
-    expect(link.getAttribute('href')).toContain('ordering=newest')
-    expect(link.getAttribute('href')).toContain('overdue=all')
+    expect(link.getAttribute('href')).toBe('/collections?view=month&page=1')
 
     server.calls.length = 0
     await user.click(link)
     await waitFor(() => expect(server.to(LIST).length).toBeGreaterThan(0))
     const asked = server.to(LIST)[0].query
-    expect(asked.get('status')).toBe('COLLECTED')
-    expect(asked.get('ordering')).toBe('newest')
+    expect(asked.get('collected_in')).toBe('this_month')
+    expect(asked.has('status')).toBe(false)
   })
 
   it('an empty note is sent as empty', async () => {
